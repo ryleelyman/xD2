@@ -179,7 +179,7 @@ local function add_xTurns_params(id)
   a("lfo > index", "lfo_index_mod", lin(0, 1, 0))
   a("numerator", "fm_numerator", controlspec.new(1, 30, "lin", 1, 1))
   a("denominator", "fm_denominator", controlspec.new(1, 30, "lin", 1, 1))
-  params:add_separator("xTurns_formant" .. suffix, "formant")
+  params:add_separator("xTurns_formant_osc" .. suffix, "formant")
   a("amp", "formant_amp", lin(0, 1, 0.5))
   a("sq > amp", "square_formant_amp_mod", lin(-1, 1, 0))
   params:add{
