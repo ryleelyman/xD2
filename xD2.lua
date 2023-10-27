@@ -89,7 +89,7 @@ function init()
   local ophook = function(self)
     self.lists[1].index = self.index
     self.lists[1].num_above_selected = 0
-    self.llists[2].index = self.index
+    self.lists[2].index = self.index
     for i = 1, 8 do
       self.lists[2].entries[i] = params:string(self.params[i] .. Voice)
     end
