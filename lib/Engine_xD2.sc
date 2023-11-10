@@ -287,7 +287,9 @@ Engine_xD2 : CroneEngine {
 						\orel,    xDTimbres[timbre].orel,
 						\frel,    xDTimbres[timbre].frel,
 						\hfamt,   xDTimbres[timbre].hfmat,
+						\hifreq,  xDTimbres[timbre].hifreq,
 						\lfamt,   xDTimbres[timbre].lfamt,
+						\lofreq,  xDTimbres[timbre].lofreq,
 						\ocurve,  xDTimbres[timbre].ocurve,
 						\fcurve,  xDTimbres[timbre].fcurve,
 						\lfreq,   xDTimbres[timbre].lfreq,
@@ -554,7 +556,7 @@ Engine_xD2 : CroneEngine {
 			xDTimbres[msg[3]].put(param, curr);
 			xVoices.keysValuesDo({ arg key, syn;
 				if ((key.type == 0) && (key.timbre == msg[3]) && (syn.isPlaying == true), {
-					syn.set(key, curr);
+					syn.set(param, curr);
 				});
 			});
 		});

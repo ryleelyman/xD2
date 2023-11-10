@@ -13,6 +13,7 @@ Envgraph = require("envgraph")
 Graph = require("graph")
 Reflection = include("lib/reflection")
 Musicutil = require("musicutil")
+local halfsecond = include("lib/halfsecond")
 local Voice = 0
 local Type = 1
 local Tab = {}
@@ -81,6 +82,7 @@ engine.name = "xD2"
 norns.version.required = 231010
 
 function init()
+  halfsecond.init()
   xD2.init(true, 3)
   Screen = {
     UI.Pages.new(1, 3),
@@ -142,7 +144,7 @@ function init()
   Screen[1][2] = Page.new({ "FILTER", "LFO" },
     {
       Tab.new({
-          "xD2_fatk_", "xD2_fdec_", "xD2_fsus_", "xD2_frel",
+          "xD2_fatk_", "xD2_fdec_", "xD2_fsus_", "xD2_frel_",
           "xD2_hifreq_", "xD2_hires_", "xD2_lofreq_", "xD2_lores_",
           "xD2_hfamt_", "xD2_lfamt_", "xD2_fcurve_",
         },
@@ -238,7 +240,7 @@ function init()
           end
           self.lists[2].text_align = "right"
           screen.level(10)
-          local alg_path = _path.code .. "xD2/img/" .. params:get("alg_" .. Voice) .. ".png"
+          local alg_path = _path.code .. "xD2/img/" .. params:get("xD2_alg_" .. Voice) .. ".png"
           screen.display_png(alg_path, 4, 24)
           screen.fill()
         end),
@@ -251,7 +253,7 @@ function init()
           "xTurns_env_index_mod_", "xTurns_detune_square_octave_", "xTurns_detune_square_steps_",
           "xTurns_detune_square_cents_", "xTurns_lfo_pitch_mod_", "xTurns_env_pitch_mod_" },
         {
-          { 1, 2, 3, 12 },
+          { 1, 2, 3, 14 },
           { 5, 6, 7, 9 },
         },
         {
@@ -279,7 +281,7 @@ function init()
           "xTurns_lfo_pitch_mod_", "xTurns_env_pitch_mod_", "xTurns_formant_amp_", "xTurns_square_formant_amp_mod_",
           "xTurns_lfo_amp_mod_" },
         {
-          { 1, 4, 13, 10 },
+          { 1, 4, 13, 12 },
           { 2, 5, 6,  14 },
         },
         {
@@ -505,6 +507,7 @@ function init()
   Screen[2][3].tabs[1].filt_graph:set_position_and_size(4, 22, 56, 38)
   Screen[2][3].tabs[2].filt_graph:set_position_and_size(4, 22, 56, 38)
 
+  params:bang()
   Arc_Data = {}
   for i = 1, 2 do
     for _, page in ipairs(Screen[i]) do
@@ -514,18 +517,26 @@ function init()
             for v = 0, 2 do
               local num = tab.arc_params[m][n]
               local id = tab.params[num] .. v
-              Arc_Data[id] = 0
+              Arc_Data[id] = params:get(id)
+                Arc_Data[id].range = params:lookup_param(id):get_range()
             end
           end
         end
       end
     end
   end
+  Arc_Dirty = true
   local arc_process_metro = metro.init()
-  arc_process_metro.event = process_arc
+  arc_process_metro.event = function()
+    if Arc_Dirty then
+      arc_redraw()
+    end
+  end
   if arc_process_metro then
     arc_process_metro:start(1 / 15)
   end
+
+  Grid_Dirty = true
 
   Narcissus = {}
   Lilies = {}
@@ -534,20 +545,17 @@ function init()
     Narcissus[i].subloop = nil
     Narcissus[i].jump = nil
     Narcissus[i].process = grid_note
-    Narcissus[i].end_of_step_callback = function()
+    Narcissus[i].step_callback = function()
       Grid_Dirty = true
       if Narcissus[i].endpoint == 0 then return end
       if Narcissus[i].jump then
-        local remainder = Narcissus[i].step % 1
-        if remainder == 0 then
-          Narcissus[i].step = Narcissus[i].jump
-          Narcissus[i].jump = nil
-        end
+        local remainder = Narcissus[i].step % 96
+        Narcissus[i].step = Narcissus[i].jump + remainder
+        Narcissus[i].jump = nil
       elseif Narcissus[i].subloop then
         if Narcissus[i].step >= Narcissus[i].subloop[2] then
-          if Narcissus[i].step % 96 == 0 then
-            Narcissus[i].step = Narcissus[i].subloop[1]
-          end
+          local remainder = Narcissus[i].step % 96
+          Narcissus[i].step = Narcissus[i].subloop[1] + remainder
         end
       end
     end
@@ -556,21 +564,22 @@ function init()
     Lilies[i].jump = nil
     Lilies[i].lights = {}
     Narcissus[i].lights = {}
+    for x = 1, 16 do
+      Narcissus[i].lights[x] = 0
+      Lilies[i].lights[x] = 0
+    end
     Lilies[i].process = process_param_event
-    Lilies[i].end_of_step_callback = function()
+    Lilies[i].step_callback = function()
       Grid_Dirty = true
       if Lilies[i].endpoint == 0 then return end
       if Lilies[i].jump then
         local remainder = Lilies[i].step % 96
-        if remainder == 0 then
-          Lilies[i].step = Lilies[i].jump
-          Lilies[i].jump = nil
-        end
+        Lilies[i].step = Lilies[i].jump + remainder
+        Lilies[i].jump = nil
       elseif Lilies[i].subloop then
         if Lilies[i].step >= Lilies[i].subloop[2] then
-          if Lilies[i].step % 96 == 0 then
-            Lilies[i].step = Lilies[i].subloop[1]
-          end
+          local remainder = Lilies[i].step % 96
+          Lilies[i].step = Lilies[i].subloop[1] + remainder
         end
       end
     end
@@ -693,7 +702,7 @@ function one_redraw()
   One:refresh()
 end
 
-local function grid_note(event)
+function grid_note(event)
   local note = fret_to_note(event.x, event.y)
   if event.t == Type and event.v == Voice then
     One_Presses[event.x][event.y] = event.z
@@ -738,53 +747,61 @@ One.key = function(x, y, z)
       t = Type,
     }
     for i = 1, 3 do
-      Lilies[i]:watch(event)
+      Narcissus[i]:watch(event)
     end
     grid_note(event)
   end
 end
 
 function process_param_event(event)
+  Arc_Dirty = true
   Screen_Dirty = true
   local found, s_end = string.find(event.key, "_%d$")
-  if found and s_end then
-    engine.xDindex_set(string.sub(event.key, 1, found), tonumber(string.sub(event.key, s_end, s_end)), event.v,
-      event.x)
-    params:set("xD_2" .. event.key .. "_" .. event.v, event.x, true)
-  elseif event.key == "monophonic" then
-    engine.set_timbre_monophonic(event.x, event.v, event.t)
-    if event.t == 1 then
-      params:set("xD2_monophonic_" .. event.v, event.x, true)
+    if found and s_end then
+        engine.xDindex_set(string.sub(event.key, 1, found), tonumber(string.sub(event.key, s_end, s_end)), event.v,
+            event.x)
+        params:set("xD_2" .. event.key .. "_" .. event.v, event.x, true)
+    elseif event.key == "monophonic" then
+        engine.set_timbre_monophonic(event.x, event.v, event.t)
+        if event.t == 1 then
+            params:set("xD2_monophonic_" .. event.v, event.x, true)
+        else
+            params:set("xTurns_monophonic_" .. event.v, event.x, true)
+        end
+    elseif event.key == "detune_square" then
+        engine.xTset("detune_square", event.v, event.x)
+        local cents = event.x % 1
+        local steps = (event.x - cents) % 12
+        local octave = event.x - cents - steps
+        params:set("xTurns_detune_square_cents_" .. event.v, cents, true)
+        params:set("xTurns_detune_square_steps_" .. event.v, steps, true)
+        params:set("xTurns_detune_square_octave_" .. event.v, octave, true)
+    elseif event.key == "detune_formant" then
+        engine.xTset("detune_formant", event.v, event.x)
+        local cents = event.x % 1
+        local steps = (event.x - cents) % 12
+        local octave = event.x - cents - steps
+        params:set("xTurns_detune_formant_cents_" .. event.v, cents, true)
+        params:set("xTurns_detune_formant_steps_" .. event.v, steps, true)
+        params:set("xTurns_detune_formant_octave_" .. event.v, octave, true)
+        Screen_Dirty = true
+        return
     else
-      params:set("xTurns_monophonic_" .. event.v, event.x, true)
+        if event.t == 1 then
+            engine.xDset(event.key, event.v, event.x)
+            params:set("xD2_" .. event.key .. "_" .. event.v, event.x, true)
+        else
+            engine.xTset(event.key, event.v, event.x)
+            params:set("xTurns_" .. event.key .. "_" .. event.v, event.x, true)
+        end
     end
-  elseif event.key == "detune_square" then
-    engine.xTset("detune_square", event.v, event.x)
-    local cents = event.x % 1
-    local steps = (event.x - cents) % 12
-    local octave = event.x - cents - steps
-    params:set("xTurns_detune_square_cents_" .. event.v, cents, true)
-    params:set("xTurns_detune_square_steps_" .. event.v, steps, true)
-    params:set("xTurns_detune_square_octave_" .. event.v, octave, true)
-  elseif event.key == "detune_formant" then
-    engine.xTset("detune_formant", event.v, event.x)
-    local cents = event.x % 1
-    local steps = (event.x - cents) % 12
-    local octave = event.x - cents - steps
-    params:set("xTurns_detune_formant_cents_" .. event.v, cents, true)
-    params:set("xTurns_detune_formant_steps_" .. event.v, steps, true)
-    params:set("xTurns_detune_formant_octave_" .. event.v, octave, true)
-    Screen_Dirty = true
-    return
-  else
+  local id
     if event.t == 1 then
-      engine.xDset(event.key, event.v, event.x)
-      params:set("xD2_" .. event.key .. "_" .. event.v, event.x, true)
+        id = "xD2_" .. event.key .. "_" .. event.v
     else
-      engine.xTset(event.key, event.v, event.x)
-      params:set("xTurns_" .. event.key .. "_" .. event.v, event.x, true)
+        id = "xTurns_" .. event.key .. "_" .. event.v
     end
-  end
+    if Arc_Data[id] then Arc_Data[id] = event.x end
 end
 
 function xD2.param_changed_callback(key, v, t, x)
@@ -795,58 +812,54 @@ function xD2.param_changed_callback(key, v, t, x)
     x = x,
   }
   for i = 1, 3 do
-    Narcissus[i]:watch(event)
+    Lilies[i]:watch(event)
+  end
+  Arc_Dirty = true
+  local id
+  if t == 1 then
+    id = "xD2_" .. key .. "_" .. v
+  else
+    id = "xTurns_" .. key .. "_" .. v
+  end
+  if Arc_Data[id] then
+    Arc_Data[id] = x
   end
 end
 
 Arc = arc.connect()
 
 function Arc.delta(n, d)
-  d = d * 0.1
+  d = d * 0.2
   local page = Screen[Type][Screen[Type].index]
   local tab = page.tabs[page.ui.index]
   local num = tab.arc_params[Alt_Pressed and 2 or 1][n]
   local id = tab.params[num] .. Voice
   params:delta(id, d)
-  Arc_Data[id] = Arc_Data[id] - d
+  Arc_Dirty = true
 end
 
-local function arc_redraw()
+local ARCMIN = -0.8 * math.pi
+local ARCMAX = 0.8 * math.pi
+
+function arc_redraw()
+  Arc_Dirty = false
   local page = Screen[Type][Screen[Type].index]
   local tab = page.tabs[page.ui.index]
   Arc:all(0)
   for i = 1, 4 do
     local num = tab.arc_params[Alt_Pressed and 2 or 1][i]
     local id = tab.params[num] .. Voice
-    local center = -Arc_Data[id]
-    Arc:segment(i, center - 0.5, center + 0.5, 15)
+    local min = Arc_Data[id].range[1] 
+    local max = Arc_Data[id].range[2]
+    local center = util.linlin(min, max, ARCMIN,  ARCMAX, Arc_Data[id])
+    Arc:segment(i, center - 0.1, center + 0.1, 15)
   end
   Arc:refresh()
 end
 
-SPEED = 1
+SPEED = 5
 
-function process_arc()
-  local a = math.exp(-1 / (15 * SPEED))
-  for id, datum in pairs(Arc_Data) do
-    if datum == 0 then goto continue end
-    local out = (1 - a) * datum
-    Arc_Data[id] = util.round(a * datum, 0.001)
-    params:delta(id, out)
-    ::continue::
-  end
-  arc_redraw()
-end
-
-Two_Presses = {}
-for x = 1, 16 do
-  Two_Presses[x] = {}
-  for y = 1, 8 do
-    Two_Presses[x][y] = 0
-  end
-end
-
-function Two_redraw()
+function two_redraw()
   Two:all(0)
   for i = 1, 3 do
     local x = 2 * i + 4
@@ -863,7 +876,7 @@ function Two_redraw()
     local y = 2 * i + 1
     for x = 1, 16 do
       local offset = (x - 1) * 96
-      if Two_Presses[x][y] then
+      if Two_Presses[x][y] == 1 then
         Two:led(x, y, 15)
       elseif Narcissus[i].play == 1 and Narcissus[i].step >= offset and Narcissus[i].step <= offset + 95 then
         Two:led(x, y, 13)
@@ -874,7 +887,7 @@ function Two_redraw()
         end
         Two:led(x, y, light)
       end
-      if Two_Presses[x][y + 1] then
+      if Two_Presses[x][y + 1] == 1 then
         Two:led(x, y + 1, 15)
       elseif Lilies[i].play == 1 and Lilies[i].step >= offset and Lilies[i].step <= offset + 95 then
         Two:led(x, y + 1, 13)
@@ -939,7 +952,7 @@ Two.key = function(x, y, z)
     local self
     if y % 2 == 1 then self = Narcissus[i] else self = Lilies[i] end
     for u = 1, 16 do
-      if Two_Presses[u][y] then
+      if Two_Presses[u][y] == 1 then
         if u <= x then
           self.subloop = { (u - 1) * 96, (x - 1) * 96 }
         else
