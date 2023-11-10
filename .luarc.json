@@ -1,0 +1,7 @@
+{
+    "diagnostics.globals": ["_norns"],
+    "diagonstics.disable": ["lowercase-global"],
+    "indent_style": "space",
+    "indent_size": "2",
+    "workspace.library": ["/Users/rylee/src/norns/lua"]
+}

@@ -422,14 +422,14 @@ Engine_xD2 : CroneEngine {
 			if (notesOn==false, {
 				xVoices.keysValuesDo({ arg key, syn;
 					if ((key.timbre==timbre) && (key.type == type) && (syn.isPlaying == true), {
-						syn.release();
+						syn.set(\gate, 0);
 						xVoices.removeAt(key);
 					});
 				});
 			}, {
 				xVoices.keysValuesDo({ arg key, syn;
 					if ((key.timbre==timbre) && (key.type == type) && (syn.isPlaying == true), {
-						syn.release();
+						syn.set(\gate, 0);
 						if (playedAnother==false, {
 							syn.set(\gate, 1, \note, key.note);
 							playedAnother = true;
